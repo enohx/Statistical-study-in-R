@@ -1,0 +1,640 @@
+---
+title: "Statistical inference"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Needed packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(statsr)
+library(knitr)
+library(gridExtra)
+library(rmarkdown)
+library(gapminder)
+library(tinytex)
+library(dplyr)
+library(moments)
+```
+
+### Data selected for the study
+
+
+
+```{r load-data}
+dataset <- read.csv("data.csv")
+
+```
+## Introduction
+
+Data science has quickly become one of the most in-demand areas in today's labor market. The exponential expansion in the quantity of data collected every day has made it critical for businesses to have experienced individuals who can evaluate, understand, and make data-driven choices. As a result, there is a considerable rise in demand for data scientists, which has resulted in attractive payments being provided for data science employment.
+
+For a variety of reasons, researching compensation trends in data science positions is an intriguing issue. For starters, it can give useful information on the current employment market for data scientists, including the elements that influence earnings. Second, it may assist both job searchers and employers in better understanding the employment market and positioning themselves to recruit top talent or make educated hiring decisions. Lastly, this study may add to the expanding body of research on data science as a subject by offering insights into the most relevant skills and certifications in the sector.
+
+
+The goal of this research is to use a dataset to investigate pay trends in data science employment. We will examine several elements that may influence a data scientist's income, such as type of employment, geography, job title, and more. This project will utilize the usage of statistical inference techniques to glean significant insights from data which will be used to answer the question 
+
+ "In the career choices of a data scientist, does the size of the company make a significant change in compensation received for their work".
+
+
+Overall, this research has the potential to give helpful and significant information regarding data scientist pay and the labor market, making it an important and relevant study.
+
+* * *
+
+
+
+## Data
+
+Dataset Description
+
+This dataset contains information regarding the pay rate of different data science employees while also taking into account various other factors such us the size of the company, position, working hours, presence in the office, etc
+
+* Work_year - is a variable that can take either the value 2020 (representing the previous year of when the data is taken and for simplicity can be encoded as 0) or 2021e (which represents the current year of when the dataset is collected and can be encoded as 1)
+
+* Experience_level - is a variable that represents the level of experience that an employee has in its position and can take either of the following values ordered as follows:  {EN - Entry level; MI - mid level;  SE - senior level; EX - executive level}
+
+* Employement_type - is a variable that represents the type of hiring contract for each employee and can get the value from one of the following categories {PT - part time ;  FT - Full time; CT - contract; FL - freelance}
+
+* Job_title - The title that each employee holds in their respective companies
+
+* Salary - the gross salary in the local currency
+
+* Salary_currency -  the currency code for the salary (for ex Eu for euro, USD for dollar etc)
+
+* Salary_in_usd - the gross salary in dollars (according to the exchange rate for the dollar and the local currency for the respective year)
+
+* Employee_residence - the country code for the country where the employee is residing 
+
+* Remote_ratio - represents the amount of work done remotely by the employees where 0 tells us that the employee works up to 80% of the time from office, 100 shows us that the employee works fully remote, and 50 shows us that the employee works partially remote
+
+* Company_location - the location of the main office or the branch where the employee works represented in country code
+
+* Company_size - refers to the number of the employees working for the company in the period of 1 year. In the case that the number of employees is less than 50 then the company is represented with S - small, otherwise the company is recorded as M - medium, if the number of employees is less than 250 and L - large, if the number of employees is more than 250.
+
+ Source for the dataset : Kaggle
+ 
+Link to the Dataset: [link](https://www.kaggle.com/datasets/saurabhshahane/data-science-jobs-salaries)
+
+Author of the dataset Saurabh Shahane, [linked in profile](https://www.linkedin.com/in/saurabh-shahane/?originalSubdomain=in)
+
+Primary Source: the data seems to be collected using an online form the link to which is [here](https://ai-jobs.net/salaries/form/)
+
+Dataset Dimensions:
+
+This dataset has in total 11 fields (of which 1 is logical, 2 are numerical and the others seems to be categorical) and 245 observations.
+
+
+
+
+
+* * *
+
+
+
+
+
+* * *
+
+## Exploratory data analysis
+
+In this part of the study we will focus in adressing three main points, in effort to make the chosen dataset more compact and usable. These three points can be described as:
+
+* Determining the more important variables and differentiating them from the less important variables for this study
+
+* Identification of outliers in the dataset, and possible missing or nonsensical values
+
+* Identifying the different relationships between variables, focusing on the more important variables for this study
+
+The last point is of particular importance and in this report it will be treated throughout three phases.
+
+The first phase will focus on the general information about the dataset as a whole with the focus being on wages, its outliers, and the parameters of the population chosen for this study.
+
+The second phase will focus on the company size, how the population is related to the company size, its distribution and proportions of subcategories in that distribution as well as showing the wage ranges across each company size
+
+The third step will focus on the seniority level while also expanding on the previous phases. It will feature observations on the distribution of the population across different seniority levels and the proportions of each company size in that distribution; additionally, it will feature the wage ranges for each seniority level while also expanding on how the wages differ between different seniority levels and different company  sizes.
+
+
+
+## Determining the more important variables and differentiating them 
+  
+
+
+One can notice that not all of the attributes in the data set seem to be connected to the question that this study aims to answer. Therefore the fields deemed as more important, as listed below are grouped into a subset of the dataset called important_data
+
+* Salary in US dollars
+* seniority level
+* Company Size
+* Working hours/employment_type
+
+```{r}
+important_data <- subset(dataset, select = c(experience_level, salary_in_usd, company_size, employment_type))
+```
+
+
+Furthermore, based on the data available, it can be noticed that not every employee is hired under the same type of contract. Since we are interested in the compensation that the data scientists receive for their work then there is need for a new column to be made which will represent the amount of hours that each data scientist in the data set contributes in their company in the span of a week. A part time job normally consists of 20h while a full time job, contract or free lancing generally would come up to roughly 40h (this is an assumption that is going to be made in order to generalize the compensation received across different contracts)
+```{r}
+important_data$hours<- ifelse(important_data$employment_type != "PT", 40,20)
+```
+
+
+
+Following the previous logic, in order for this study to proceed; a new column of data will be created holding again the compensation in dollars however this time in the cases of a part time employment the payment will be doubled in order to approximate their earning in a hypothetical full time contract. This column will be named "FT_comp_usd"
+
+Additionally, since some of the numbers for the wages in this dataset are too big then we will also apply a 1000:1 scale down to the payment
+
+
+```{r}
+important_data$FT_comp_usd<- ifelse(important_data$hour == 20, 
+                                    important_data$salary_in_usd *2/1000,
+                                    important_data$salary_in_usd * 1/1000)
+```
+
+
+After the finalizing of the subset that will be used for this study, the next step is to proceed with the identification of the outliers in the dataset
+
+
+
+```{r}
+#general Boxplot
+
+ggplot(important_data, aes( y = FT_comp_usd))+
+geom_boxplot(outlier.color = "blue")+
+ylab("Wages for Data Scientists in the Dataset in the Thousands")
+
+```
+
+First thing that can be noticed from this box plot is the huge range of wages, while some values (especially the outliers) are well above 400 thousand, other records seem to be barely over 2 thousand. 
+This discrepancy in values happens, among other not measurable factors such as negotiation skills, because of the location of either the company, or the data scientist. For example the lowest value (around 2800$) is attributed to a data scientist located in mexico, the following low wages are also all located in countries with relatively low wages, such as iran, pakistan, india etc. Another thing to notice is that the majority of the values seems to be grouped in the values between 50k and 150k which is in accordance with the information offered by the [Bureau of Labour Statistics](https://www.bls.gov/oes/current/oes152051.htm). This observation more or less verifies the validity of the chosen dataset.
+
+Nevertheless, while the previous plot portrays the ouliers and the range where most of the values in the dataset are located, the additional usage of a histogram can provide us with more information about the frequency distribution of these values, as well as with the shape of the distribution.
+
+```{r}
+#general Histogram
+
+ggplot(important_data, aes(x =FT_comp_usd)) +
+geom_histogram(binwidth = 20)+
+xlab("Frequency of the data scientists per value")+
+ylab("Wages for Data Scientists in the Dataset in the Thousands")+
+ggtitle("                        Wage Distribution Histogram for Data Scientists")
+```
+
+
+What can be noticed from this histogram are three things: 
+
+1- Similar to the box plot we can see the presence of the outliers which are represented by mostly very big         values.
+
+2- Most of the values seems to be grouped at the bottom 25% of the whole range making this a right skewed            distribution
+
+3- The frequencies with the highest distribution seem to be between 0 and 100k
+
+
+Despite this to further increase the information that we have about the dataset one needs to compute the parameters of the population.
+BY definition: "parameters of a population are numerical values that describe some characteristic of the entire population"
+
+
+Some of the more common parameters for a population are as follows: 
+
+* Mean: The arithmetic average of all the values in the population.
+
+* Median: The middle value in the population when the data is sorted in ascending or descending order.
+
+* Mode: The most frequently occurring value in the population.
+
+* Variance: A measure of how spread out the values in the population are.
+
+* Standard deviation: The square root of the variance, which represents the average distance of the values in the   population from the mean.
+
+* Skewness: A measure of the asymmetry of the distribution of values in the population.
+
+* Kurtosis: A measure of the "peakedness" or "flatness" of the distribution of values in the population.
+
+
+```{r}
+# A function to find the mode of a vector
+get_mode <- function(x) {
+  ux <- unique(x)  #gets all the unique values of the given column or vector
+  ux[which.max(tabulate(match(x, ux)))] #gets the value which has the highest count amongs the unique values
+}
+
+
+```
+
+
+```{r}
+#Computing the parameters
+
+
+#mean
+mean_val <- mean(important_data$FT_comp_usd) * 1000
+
+#median
+median_val = median(important_data$FT_comp_usd) * 1000
+
+#mode
+mode_val <- get_mode(important_data$FT_comp_usd) * 1000 
+
+#Variance
+Variance_val <- var(important_data$FT_comp_usd *1000)
+
+#Standard deviation
+std_val <- sd(important_data$FT_comp_usd*1000)
+
+#skewness
+skew_val <- skewness(important_data$FT_comp_usd)  #positive value = right skewness, negative val = left skewness
+
+#Kurtosis
+kurtosis_val <- kurtosis(important_data$FT_comp_usd)  # Kurtosis measures the "tailedness" of a distribution,                                                            with a higher value indicating more extreme outliers in                                                          the tails of the distribution
+
+
+
+
+```
+```{r, echo=FALSE}
+cat("Mean value for the wages in the dataset: ", mean_val)
+cat("Median value for the wages in the dataset: ", median_val)
+cat("Mode value for the wages in the dataset: ", mode_val)
+cat("Variance value for the wages in the dataset: ", Variance_val)
+cat("Std value for the wages in the dataset: ", std_val)
+cat("Skewness value for the wages in the dataset: ", skew_val)
+cat("Kurtosis value for the wages in the dataset: ", kurtosis_val)
+
+```
+
+From these parameters one can understand that the data appears to have a large spread of wages, with some very high values driving up the mean and mode. The positive skewness and high kurtosis indicate that there are likely outliers or extreme values in the dataset. These results seems to align with the conclusions driven from the previous two plots.
+
+Additionally, it may be beneficial to study the causes of extreme values or outliers in this dataset, since they may have a substantial influence on any inferences formed from the data. For example, if all of the high pay come from a single category.
+
+
+
+
+
+
+***
+In this phase of the EDA there are 3 points that need to be adressed.
+
+
+Firstly, after having an idea of the wage distribution across population, the next thing to do is to understand how the wages are distributed across different categories of company sizes, as well as the proportion that each seniority level has in every company size. 
+
+```{r}
+ggplot(data = important_data, aes(x = company_size)) +
+  geom_bar()+
+  xlab("Size of the company")+
+  ylab("Number of the data scientists employed")+
+  ggtitle("Distribution of the Data Scientists Across Different Company Sizes")
+
+ggplot(data = important_data, aes(x = company_size, fill = experience_level)) +
+  geom_bar(position  = "fill")+
+  xlab("Size of the company")+
+  ylab("Percentage of the data scientists employed
+        according to seniority")+
+  ggtitle("Proportional Distribution of the Data Scientists Based on Seniority
+                          Across Different Company Sizes")
+```
+
+
+The observed results are somewhat expected with the following conclusions:
+
+* Most of the data scientists seem to be employed by the large size companies
+
+* The bulk of the data science team in the large and medium companies consists of mid scientists and the bulk of the team of the small companies consists of the entry level data scientists
+
+
+
+
+Secondly: after veryfing the presence of the outliers in the first phase of the EDA, and the considerable value of the Kurtosis and the Skewness, there is a need to see the distribution of these outliers across different categories. 
+```{r}
+ggplot(important_data, aes(y = company_size, x = FT_comp_usd))+
+geom_boxplot(outlier.color = "blue")+
+  xlab("Wages for Data Scientists in the Dataset in the Thousands")+
+  ylab("Size of the Company")
+```
+
+As shown by the plot, the outliers seem to be distributed across all categories which means, that no single category will be particularly in an advantageous or disadvantageous position 
+
+
+The third and the last thing to observe in this phase of the EDA is the range of wages in the population for different categories of comapny sizes
+
+```{r}
+
+ggplot(important_data, aes(x =FT_comp_usd,  y= company_size)) +
+  geom_path(linewidth = 1.2)+
+  xlab("Compensation")+
+  ylab("Company Size")+
+  ggtitle("Wage Range for Each Company Size Across All Seniority Levels") 
+
+```
+#Accompanying table
+```{r, echo = FALSE}
+minmaxtab1 <- important_data %>% select(company_size, FT_comp_usd)
+
+minmaxtab1 <- minmaxtab1 %>%
+  group_by(company_size) %>%
+  summarise(
+    Min = min(FT_comp_usd, na.rm = T),
+    Max = max(FT_comp_usd, na.rm = T)
+  ) %>%
+  arrange(company_size)
+
+kable(minmaxtab1)
+
+```
+
+
+
+As observed from both the plot and the table one can see that the large companies offer a wider variation of wages, this happens because large companies with better finances, can afford to give higher compensations to particularly important individuals in their team, as opposed to medium and small companies who can not afford to give such high compensations
+
+
+
+
+
+
+
+
+
+***
+
+In the last phase of this EDA, the focus will be in the distribution of wages across different seniority levels and a comparison between wages of each seniority level across different company sizes
+
+Similar to the previous phase the first thing to look at is the distribution of the utliers across different seniority levels 
+```{r}
+ggplot(important_data, aes(y = experience_level, x = FT_comp_usd))+
+geom_boxplot(outlier.color = "blue")+
+  xlab("Wages for Data Scientists in the Dataset in the Thousands")+
+  ylab("Seniority Levels")+
+  ggtitle("Wage Distributions Across Different Seniority Levels")  
+```
+
+As it can be seen from the boxplot, the outliers are distributed across different levels of seniority, meaning that no singe category will be uniquely favored or penelized in the following observations
+
+
+The next observation is about the distribution of the population across different seniority levels and the proportions of the data scientists hired in each comany size accoriding to their seniority level
+```{r}
+ggplot(data = important_data, aes(x = experience_level)) +
+  geom_bar()+
+  xlab("Seniority Levels")+
+  ylab("Number of the data scientists employed")+
+  ggtitle("             Distribution of the Data Scientists Across Different Seniority Levels")
+
+ggplot(data = important_data, aes(x = experience_level, fill = company_size)) +
+  geom_bar(position = "fill")+
+  xlab("Seniority Levels")+
+  ylab("Percentage of the data scientists employed
+        according to company size")+
+  ggtitle("Proportional Distribution of the Data Scientists Based on Campany SIze
+                          Across Different Seniority Levels") 
+
+```
+
+The results again are as expected, with most of the data scientists being either a mid developer or a senior developer, with the number of the entry levels also being considerably high. Additionally most of the data scientists across every seniority level seem to be hired from the large companies with the exception of the entry level in which the small companies seem to have the biggest number of hired data scientists. This result might come from the fact that the small companies can not afford the compensations for hiring too many senior developers  or higher and are more inclined to have a significant proportion of their team consisting of entry level data scientists who require a smaller compensation on average
+
+
+
+Last thing to check, as far as the distribution of wages across different seniority levels is concerned, is the wage ranges for each category.
+
+```{r}
+ggplot(important_data, aes(x =FT_comp_usd,  y= experience_level)) +
+  geom_path(linewidth = 1.2)+
+  xlab("Compensation in the Thousands")+
+  ylab("Seniority Lelels")+
+  ggtitle("                               Wage Range for Each Seniority Level") 
+```
+```{r, echo = FALSE}
+minmaxtab <- important_data %>% select(experience_level, FT_comp_usd)
+
+minmaxtab <- minmaxtab %>%
+  group_by(experience_level) %>%
+  summarise(
+    Min = min(FT_comp_usd, na.rm = T),
+    Max = max(FT_comp_usd, na.rm = T)
+  ) %>%
+  arrange(experience_level)
+
+kable(minmaxtab)
+
+```
+
+
+Most of the information one can get from this observation is also somewhat expected, with the entry and mid level data scientists starting at around the same point, but with the latter having a higher maximum limit. The only unexpected result comes from the senior level which although it starts at a higher minimum than the mid level it has a lower maximum limit compared to the latter. The executives meanwhile have both a way higher starting point and a higher upper limit.
+
+One possible reason why the seniors receive a lesser limit than the mid developers might be located to the location of the companies, the negotiation skills or other factors
+
+
+
+The last step towards the conclusion of this EDA is the combination of the wage distributions across different seniority levels and company sizes. The importance of this observation is significant, especially while considering the question of this study.
+
+This observation will be done using histograms on subsets of the selected dataset. There will be one subset for each one of the seniority levels (4 in total), and each histogram will show the difference between each company size (small, medium, or large), where: 
+
+* Small companies are represented by color blue
+
+* Medium companies are represented by color green
+
+* Large companies are represented by color red
+
+Furthermore each histogram features 3 vertical lines, each line representing the average compensation a data scientist of the chosen level receives in thee represented company size (the colors of each line are in correspondence to the color chosen to represent each company size)
+
+```{r, echo = FALSE}
+# creating subsets for each level of experience level among data scientists
+En_imprtant_data <- subset(important_data, experience_level == "EN")
+Md_imprtant_data <- subset(important_data, experience_level == "MI")
+Se_imprtant_data <- subset(important_data, experience_level == "SE")
+Ex_imprtant_data <- subset(important_data, experience_level == "EX")
+
+```
+
+
+
+```{r, echo = FALSE}
+#Plotting one histogram to get a visual representation of the pay range of each seniority level across different company sizes
+
+
+
+ggplot(En_imprtant_data, aes(x =FT_comp_usd, fill = company_size)) +
+  geom_histogram(binwidth = 20)+
+  geom_vline(xintercept = sum(subset(En_imprtant_data, company_size == "S")$FT_comp_usd)/
+                          nrow(subset(En_imprtant_data, company_size == "S")), color = "blue")+
+  geom_vline(xintercept = sum(subset(En_imprtant_data, company_size == "M")$FT_comp_usd)/
+                          nrow(subset(En_imprtant_data, company_size == "M")), color = "green")+
+  geom_vline(xintercept = sum(subset(En_imprtant_data, company_size == "L")$FT_comp_usd)/
+                          nrow(subset(En_imprtant_data, company_size == "L")), color = "red")+
+  xlab("Compensation")+
+  ylab("number of data scientists")+
+  ggtitle("Wage Distribution for Entry Level Data Scientists Across Different Comapany Sizes")
+
+
+
+
+ggplot(Md_imprtant_data, aes(x =FT_comp_usd, fill = company_size)) +
+  geom_histogram(binwidth = 20)+
+  geom_vline(xintercept = sum(subset(Md_imprtant_data, company_size == "S")$FT_comp_usd)/
+                          nrow(subset(Md_imprtant_data, company_size == "S")), color = "blue")+
+  geom_vline(xintercept = sum(subset(Md_imprtant_data, company_size == "M")$FT_comp_usd)/
+                          nrow(subset(Md_imprtant_data, company_size == "M")), color = "green")+
+  geom_vline(xintercept = sum(subset(Md_imprtant_data, company_size == "L")$FT_comp_usd)/
+                          nrow(subset(Md_imprtant_data, company_size == "L")), color = "red")+
+  xlab("Compensation")+
+  ylab("number of data scientists")+
+  ggtitle("Wage Distribution for Mid Level Data Scientists Across Different Comapany Sizes")
+
+
+
+ggplot(Se_imprtant_data, aes(x =FT_comp_usd, fill = company_size)) +
+  geom_histogram(binwidth = 20)+
+  geom_vline(xintercept = sum(subset(Se_imprtant_data, company_size == "S")$FT_comp_usd)/
+                          nrow(subset(Se_imprtant_data, company_size == "S")), color = "blue")+
+  geom_vline(xintercept = sum(subset(Se_imprtant_data, company_size == "M")$FT_comp_usd)/
+                          nrow(subset(Se_imprtant_data, company_size == "M")), color = "green")+
+  geom_vline(xintercept = sum(subset(Se_imprtant_data, company_size == "L")$FT_comp_usd)/
+                          nrow(subset(Se_imprtant_data, company_size == "L")), color = "red")+
+  xlab("Compensation")+
+  ylab("number of data scientists")+
+  ggtitle("Wage Distribution for Senior Level Data Scientists
+                  Across Different Comapany Sizes")
+
+
+
+ggplot(Ex_imprtant_data, aes(x =FT_comp_usd, fill = company_size)) +
+  geom_histogram(binwidth = 60)+
+  geom_vline(xintercept = sum(subset(Ex_imprtant_data, company_size == "S")$FT_comp_usd)/
+                          nrow(subset(Ex_imprtant_data, company_size == "S")), color = "blue")+
+  geom_vline(xintercept = sum(subset(Ex_imprtant_data, company_size == "M")$FT_comp_usd)/
+                          nrow(subset(Ex_imprtant_data, company_size == "M")), color = "green")+
+  geom_vline(xintercept = sum(subset(Ex_imprtant_data, company_size == "L")$FT_comp_usd)/
+                          nrow(subset(Ex_imprtant_data, company_size == "L")), color = "red")+
+  xlab("Compensation")+
+  ylab("number of data scientists")+
+  ggtitle("Wage Distribution for Executive Level Data Scientists
+                Across Different Comapany Sizes") 
+```
+
+The results from this observation are quite informative, as they can allow one to better understand the best choice of a company throughout every phase of one's career as a data scientist. Keeping this in mind, while also considering the other information received throughout this EDA, one can derive the following conclusions about the data:
+
+
+* 1.) Factors such as the location of the company or the location of the data scientist are one of the main reasons for the huge range of distribution for wages in the selected population, and the existence of extreme outliers, raising questions in the validity of the dataset for this study; however the fact that the majority of the values as well as the mean value of this dataset fall in accordance with official sources such as the bureau of labor statistics suggests that the outliers presence does not diminish the usability of the dataset 
+
+* 2.)The distribution of the data in the dataset in regards to company size, as well as seniority level is in accordance with the real life distributions (at least logically), while the wage range for each category is either in accordance to predictions based in real life, or easily explainable by the presence of other significant factors which are outside the scope of this study.
+
+* 3.) The basic population parameters of each subgroup of the population seem to suggest that there is indeed some correlation between the size of the company, the seniority level, and the wages received by the employed data scientists; however one must keep in mind that the population parameters are easily affected by various factors, an example of which is the presence of the outliers. 
+
+
+
+
+
+***
+***
+
+
+## Inference
+
+
+Following the third conclusion derived by the EDA, one can reason that in order to answer the question of this study one would need to use other methods, as opposed to just looking at easily perceivable observations.
+
+One such method is the hypothesis testing which will be conducted on the chosen dataset on the basis of the following hypothesis:.
+
+$𝐻_{0}:$ A data scientist in a big company does not receive a better compensation than a data scientist in a small or a mid level company . 
+
+$m_{largeComp} = m_{smallComp} || m_{midComp}$   or $m_{largeComp} - m_{smallComp} || m_{midComp} = 0$
+
+$H_{A}:$ A data scientist in a big company is likely to receive a better compensation than a data scientist in a small or a mid level company .
+
+$m_{samllComp} || m_{midComp} < m_{largeComp}$ or $m_{samllComp} || m_{midComp} - m_{largeComp}<0$
+
+This is one-side hypothesis test (left-tailed). 
+
+
+***
+To verify the hypothesis the first step is to create a new column in the dataframe that will denote the rows with a large level company with a 1 and the rest with a 0
+
+```{r}
+important_data$Large_Company <- ifelse(important_data$company_size == "L", "1","0") 
+```
+
+```{r}
+colnames(important_data)[colnames(important_data) == "FT_comp_usd"] <- "Compensation"
+```
+
+BY agreement the significant value for this study will be set to  0.05 which is a commonly used threshold for determining statistical significance.
+
+```{r}
+set.seed(123)
+
+inference(y = Compensation, 
+          x =  Large_Company, 
+          data = important_data,
+          statistic="mean",  # c("mean", "median", "proportion")
+          type="ht",
+          null = 0,
+          alternative = "less", #c("less", "greater", "twosided"),
+          method="simulation", #c("theoretical", "simulation")
+          )
+```
+
+
+
+
+The $p$ value as shown from the results is very small , which indicates that the chances for a difference of -31,135 to be observed are rather low in a hypothesized environment where there is no real difference between wages
+
+
+The $p$ value is also smaller than the traditional significance level of  0.05, which leads one to be more inclined towards the rejection of the null hypothesis $m_{largeComp} - m_{smallComp} || m_{midComp} = 0$, arriving in the conclusion that; as per the evidence provided by the data, it is not true that the compensation received by a data scientist in a large company does not differ from the compensation received by a data scientist of in a smaller size company, therefore the choice of the company where a data scientist aims to work in the future, or rather its scale, has significance in the compensation that this data scientist is expected to earn
+
+
+
+That being said, the real life scenarios might often prove to be somewhat more complex. After all it arguably easier for a data scientist to start his/her career in a bigger sized company rather than a small one due to internship opportunities, large scale recruitment etc; however, it is also the case that earning a promotion in a larger sized company is more challenging. Many data scientists (and not only) during their career might come across the choice of staying in their large corporation or seeking a higher position in a smaller scale company. So one might ask: "When taking compensation into account, what is the right choice to do for a data scientist?"
+Considering the fact that normally the large companies offer significantly higher wages as compared to the smaller companies in which the compensation largely relies on negotiation capabilities one can argue that even with the higher position the wages in smaller companies should not be higher. 
+
+This however is just an assumption and to answer this question fully we will conduct a hypothesis testing between the mid developers of the large companies (this seniority level is chosen on the basis that a mid developer point is the most average out of all seniority levels and often are presented with the option of a transfer to another working environment) with the senior developers of the smaller companies
+
+$𝐻_{0}:$ A mid level scientist in a big company does not receive a better compensation than a senior level data scientist in a small or a mid level company . 
+
+$m_{mid_largeComp} = m_{SE_smallComp} || m_{SE_midComp}$   or
+$m_{mid_largeComp} - m_{SE_smallComp} || m_{SE_midComp} = 0$
+
+$H_{A}:$ A mid level data scientist in a big company is likely to receive a better compensation than a senior level data scientist in a small or a mid level company .
+
+$m_{SE_samllComp} || m_{SE_midComp} < m_{mid_largeComp}$ or
+$m_{SE_samllComp} || m_{SE_midComp} - m_{mid_largeComp} < 0$
+
+This is one-side hypothesis test (left-tailed). 
+
+
+-Before proceeding with the hypothesis testing a subset of the data needs to e created which will have the mid developers of the large companies and the seniors of the small and mid companies
+
+```{r}
+subData <- subset(important_data, (experience_level == "MI" & Large_Company == 1)| 
+                  (experience_level == "SE" & Large_Company == 0))
+```
+
+
+```{r}
+set.seed(123)
+
+inference(y = Compensation, 
+          x =  Large_Company, 
+          data = subData,
+          statistic="mean",  # c("mean", "median", "proportion")
+          type="ht",
+          null = 0,
+          alternative = "less", #c("less", "greater", "twosided"),
+          method="simulation", #c("theoretical", "simulation")
+          )
+```
+
+Looking at the results the $p$ value is way bigger than the traditional significance level of  0.05, which leads one to almost certainly reject the alternative hypothesis and be more inclined to accept the null hypothesis $m_{largeComp} - m_{smallComp} || m_{midComp} = 0$, arriving in the conclusion that a mid level scientist in a big company does not receive a better compensation than a senior level data scientist in a small or a mid level company therefore the previous conclusion that the choice of the company where a data scientist aims to work and also further their career has significant importance in the expected compensation.
+
+
+
+## Part 5: Conclusion
+
+To conclude, this study showed that the size of company seems to pay a very significant role when it comes to the compensation that a data scientist is expected to receive for their work. Therefore, as suggested by this study, in the career choices of a data scientist there are some points that need to be kept in mind
+
+* 1st: Overall the large companies hire more employees and offer higher wages on average across all seniority      levels, as supported by the first hypothesis testing 
+
+* 2nd: Even if one starts their career in a large company, once they have reached a certain level in their         career, one should not disregard the opportunity to move to a smaller company, provided that this movement is    also accompanied by a promotion
+
+* 3rd: Despite the results given by this study it is also important to keep in mind that there other factors that can effect and will effect the wage that a data scientist will receive such us but not limited to: location of the company, the negotiation skills of the person, personal and professional skills of the person etc
+
